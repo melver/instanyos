@@ -1,0 +1,33 @@
+
+pkgname=libmali
+pkgver=0.0.35
+pkgrel=1
+pkgdesc="Chromebook libmali, provides 3D graphics acceleration"
+arch=(any)
+license=('custom')
+depends=()
+conflicts=('libgl')
+provides=('libgl')
+source=()
+sha256sums=()
+install=libmali.install
+
+build() {
+	cd "${srcdir}"
+}
+
+package() {
+	cd "${pkgdir}"
+
+	mkdir -p usr/lib
+
+	ln -s libEGL.so.1.0.35 usr/lib/libEGL.so
+	ln -s libEGL.so.1.0.35 usr/lib/libEGL.so.1
+	ln -s libmali.so.0.0.35 usr/lib/libEGL.so.1.0.35
+	ln -s libGLESv2.so.2.0.35 usr/lib/libGLESv2.so
+	ln -s libGLESv2.so.2.0.35 usr/lib/libGLESv2.so.2
+	ln -s libmali.so.0.0.35 usr/lib/libGLESv2.so.2.0.35
+	ln -s libmali.so.0.0.35 usr/lib/libmali.so
+	ln -s libmali.so.0.0.35 usr/lib/libmali.so.0
+}
+

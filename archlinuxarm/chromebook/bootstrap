@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+#
+# bootstrap: Install script for ARM-based Chromebook
+#
+# Author: Marco Elver <me AT marcoelver.com>
+
+set -ue
+
+if [[ "$(id -u)" != "0" ]]; then
+	printf "This script must be run as root!\n"
+	exit 1
+fi
+
+: ${FETCH:="wget"}
+: ${DISK:="/dev/mmcblk0"}
+: ${DISK_PART:="${DISK}p"}
+STATE_P=1
+KERNC_P=6
+KERND_P=9
+ROOTC_P=7
+HOME_P=10
+
+kernc_size="$(cgpt show -i ${KERNC_P} -n -s -q ${DISK})"
+kernd_size="$(cgpt show -i ${KERND_P} -n -s -q ${DISK})"
+home_size="$(cgpt show -i ${HOME_P} -n -s -q ${DISK})"
+# If you know what you are doing, it is possible to override and reset the
+# partitions even after they have been created for the first time. Not recommended!
+: ${rootc_size:="$(cgpt show -i ${ROOTC_P} -n -s -q ${DISK})"}
+: ${state_size:="$(cgpt show -i ${STATE_P} -n -s -q ${DISK})"}
+
+if (( kernc_size == 1 || kernd_size == 1 || rootc_size == 1 )); then
+	printf "=========================\n"
+	printf "Step 2: Create partitions\n"
+	printf "=========================\n\n"
+	
+	# 16 MiB for kernel
+	kernc_size=$((16 * 1024 * 2))
+	kernd_size=$((16 * 1024 * 2))
+
+	printf "Max available space on ${DISK}: %s MiB\n" "$((state_size / 1024 / 2))"
+	printf "Leftover space is allocated to ChromeOS state partition.\n\n"
+
+	while :; do
+		read -p "Enter / size in MiB: " rootc_size_mb
+		read -p "Enter /home size in MiB (0 to ignore): " home_size_mb
+
+		rootc_size=$((rootc_size_mb * 1024 * 2))
+		home_size=$((home_size_mb * 1024 * 2))
+
+		if (( kernc_size + kernd_size + rootc_size + home_size > state_size )); then
+			printf "Not enough space!\n"
+			continue
+		else
+			break
+		fi
+	done
+
+	state_size_new=$((state_size - kernc_size - kernd_size - rootc_size - home_size))
+	printf "ChromeOS STATE size: %s MiB\n" "$((state_size_new / 1024 / 2))"
+
+	state_start="$(cgpt show -i ${STATE_P} -n -b -q ${DISK})"
+	kernc_start=$((state_start + state_size_new))
+	kernd_start=$((kernc_start + kernc_size))
+	rootc_start=$((kernd_start + kernd_size))
+	home_start=$((rootc_start + rootc_size))
+
+	printf "\nAttempting to unmount STATE...\n"
+
+	umount /mnt/stateful_partition/encrypted || :
+	umount /home/chronos || :
+	umount /home || :
+	umount /var/run || :
+	umount /var/lock || :
+	umount /var || :
+	umount /mnt/stateful_partition || :
+
+	printf "Modifying partition table...\n"
+
+	cgpt add -i ${STATE_P} -b $state_start -s $state_size_new -l STATE ${DISK}
+	cgpt add -i ${KERNC_P} -b $kernc_start -s $kernc_size -l KERN-C ${DISK}
+	cgpt add -i ${KERND_P} -b $kernd_start -s $kernd_size -l KERN-D ${DISK}
+	cgpt add -i ${ROOTC_P} -b $rootc_start -s $rootc_size -l ROOT-C ${DISK}
+	(( home_size > 0 )) && cgpt add -i ${HOME_P} -b $home_start -s $home_size -l HOME ${DISK} || :
+
+	read -p "Press ENTER to reboot..."
+	reboot
+	exit 0
+fi
+
+printf "===============\n"
+printf "Step 3: Install\n"
+printf "===============\n\n"
+
+read -p "USB storage device/partition: " usb_dev
+
+usb_path="/tmp/usb_mnt"
+mkdir -p "$usb_path"
+mount "$usb_dev" "$usb_path"
+
+cd "$usb_path"
+
+image_file="ArchLinuxARM-chromebook-latest.img.gz"
+image_url="http://us.mirror.archlinuxarm.org/os/${image_file}"
+image_md5sum="fcb4437ecfebfc39d49f4704ed51fd0c"
+rawimage_file="ArchLinuxARM-chromebook-latest.img"
+
+if [[ ! -f "$rawimage_file" ]]; then
+	printf "Downloading $image_file ...\n"
+	$FETCH "$image_url"
+
+	printf "Verifying checksum...\n"
+	if [[ ! "$(md5sum "$image_file")" =~ ^"$image_md5sum " ]]; then
+		printf "ERROR: Checksum does not match!\n"
+		exit 1
+	fi
+
+	printf "Uncompressing image...\n"
+	if ! gunzip "$image_file"; then
+		printf ":( gunzip failed. You can place the uncompressed image on the USB storage device and try again.\n"
+		exit 1
+	fi
+fi
+
+printf "Copying root image...\n"
+
+# Copy ROOT-C
+dd if="$rawimage_file" of=${DISK_PART}${ROOTC_P} bs=512 skip=$((36864 * 2))
+
+printf "Setting up kernel images...\n"
+
+# Copy KERN-C
+dd if="$rawimage_file" of=KERN-C bs=512 skip=$((4096 * 2)) count=$((16 * 1024 * 2))
+
+echo "console=tty1 debug verbose root=${DISK_PART}${ROOTC_P} rootwait rw" > kernel.cmdline
+
+for kernfs in KERN-C; do
+	vbutil_kernel --repack ${kernfs}.repack --oldblob $kernfs \
+		--keyblock /usr/share/vboot/devkeys/kernel.keyblock \
+		--version 1 \
+		--signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk \
+		--config kernel.cmdline
+done
+
+dd if=KERN-C.repack of=${DISK_PART}${KERNC_P}
+
+printf "Resizing / ...\n"
+e2fsck -f ${DISK_PART}${ROOTC_P}
+resize2fs -p ${DISK_PART}${ROOTC_P}
+
+printf "Setting temporary boot partition to KERN-C ...\n"
+cgpt add -i ${KERNC_P} -P 5 -T 1 -S 0 ${DISK}
+
+printf "\nAll done. You may reboot now.\n"
+
+exit 0
+

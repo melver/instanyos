@@ -1,0 +1,19 @@
+
+post_install() {
+	roota_mount="$(mktemp -d)"
+	echo "===> Copying binary blob 'libmali.so' from ROOT-A"
+	mount -o ro LABEL=ROOT-A "$roota_mount"
+	install -m 0755 "${roota_mount}/usr/lib/libmali.so.0.0.35" usr/lib/
+	umount "$roota_mount"
+	rm -rf "$roota_mount"
+}
+
+post_remove() {
+	rm -f usr/lib/libmali.so.0.0.35
+}
+
+post_upgrade() {
+	post_remove
+	post_install
+}
+
