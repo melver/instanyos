@@ -53,12 +53,13 @@ Step 5: Chromebook specific configuration
 Chromebook specific packages
 ----------------------------
     - xf86-video-armsoc
-    - x86-input-multitouch (AUR)
+    - xf86-input-multitouch* (AUR)
     - Build and install packages found in ``pkgs``
 
 ALSA
 ----
 Copy /usr/share/alsa/ucm/ from ROOT-A ???
+$ alsaucm -c DAISY-I2S
 
 References
 ==========
@@ -67,4 +68,5 @@ References
     #. http://wiki.debian.org/InstallingDebianOn/Samsung/ARMChromebook
     #. http://www.chromium.org/chromium-os/developer-information-for-chrome-os-devices/cr-48-chrome-notebook-developer-information/how-to-boot-ubuntu-on-a-cr-48
     #. http://chromeos-cr48.blogspot.co.uk/2012/04/chrubuntu-1204-now-with-double-bits.html
+    #. http://blogs.arm.com/software-enablement/848-running-linux-on-the-series-3-chromebook/
 
