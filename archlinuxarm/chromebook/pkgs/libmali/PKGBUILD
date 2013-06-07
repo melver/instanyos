@@ -6,11 +6,16 @@ pkgdesc="Chromebook libmali, provides 3D graphics acceleration"
 arch=(any)
 license=('custom')
 depends=()
-conflicts=('libgl' 'libegl')
-provides=('libgl' 'libegl')
+conflicts=('libegl' 'libgles')
+provides=('libegl' 'libgles')
 source=()
 sha256sums=()
 install=libmali.install
+
+_libmali=libmali.so.0.0.35
+_symlinks=(	libEGL.so libEGL.so.1 libEGL.so.1.0.0 libEGL.so.1.0.35
+			libGLESv2.so libGLESv2.so.2 libGLESv2.so.2.0.0 libGLESv2.so.2.0.35
+			libmali.so libmali.so.0 )
 
 build() {
 	cd "${srcdir}"
@@ -21,13 +26,8 @@ package() {
 
 	mkdir -p usr/lib
 
-	ln -s libEGL.so.1.0.35 usr/lib/libEGL.so
-	ln -s libEGL.so.1.0.35 usr/lib/libEGL.so.1
-	ln -s libmali.so.0.0.35 usr/lib/libEGL.so.1.0.35
-	ln -s libGLESv2.so.2.0.35 usr/lib/libGLESv2.so
-	ln -s libGLESv2.so.2.0.35 usr/lib/libGLESv2.so.2
-	ln -s libmali.so.0.0.35 usr/lib/libGLESv2.so.2.0.35
-	ln -s libmali.so.0.0.35 usr/lib/libmali.so
-	ln -s libmali.so.0.0.35 usr/lib/libmali.so.0
+	for link in "${_symlinks[@]}"; do
+		ln -s $_libmali usr/lib/$link
+	done
 }
 

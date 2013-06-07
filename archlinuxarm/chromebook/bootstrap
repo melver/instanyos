@@ -16,12 +16,12 @@ fi
 : ${DISK_PART:="${DISK}p"}
 STATE_P=1
 KERNC_P=6
-KERND_P=9
+BOOT_P=9
 ROOTC_P=7
 HOME_P=10
 
 kernc_size="$(cgpt show -i ${KERNC_P} -n -s -q ${DISK})"
-kernd_size="$(cgpt show -i ${KERND_P} -n -s -q ${DISK})"
+kernd_size="$(cgpt show -i ${BOOT_P} -n -s -q ${DISK})"
 home_size="$(cgpt show -i ${HOME_P} -n -s -q ${DISK})"
 # If you know what you are doing, it is possible to override and reset the
 # partitions even after they have been created for the first time. Not recommended!
@@ -78,7 +78,7 @@ if (( kernc_size == 1 || kernd_size == 1 || rootc_size == 1 )); then
 
 	cgpt add -i ${STATE_P} -b $state_start -s $state_size_new -l STATE ${DISK}
 	cgpt add -i ${KERNC_P} -b $kernc_start -s $kernc_size -l KERN-C ${DISK}
-	cgpt add -i ${KERND_P} -b $kernd_start -s $kernd_size -l KERN-D ${DISK}
+	cgpt add -i ${BOOT_P} -b $kernd_start -s $kernd_size -l BOOT ${DISK}
 	cgpt add -i ${ROOTC_P} -b $rootc_start -s $rootc_size -l ROOT-C ${DISK}
 	(( home_size > 0 )) && cgpt add -i ${HOME_P} -b $home_start -s $home_size -l HOME ${DISK} || :
 

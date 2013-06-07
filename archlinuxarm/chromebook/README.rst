@@ -47,6 +47,26 @@ To boot ChromeOS on next boot, run:
 
     cgpt add -i 6 -P 0 -S 1 /dev/mmcblk0
 
+Optional: Setup U-Boot
+----------------------
+
+Get the U-Boot image following the instructions from:
+http://www.chromium.org/chromium-os/u-boot-porting-guide/using-nv-u-boot-on-the-samsung-arm-chromebook
+
+1. Format BOOT partition with ext2 and mount at /boot
+2. pacman -S linux-chromebook
+3. Write the U-Boot image to /dev/mmcblk0p6 (overwriting the old kernel)
+4. Reboot, hold space while booting to get dropped into the U-Boot prompt
+
+On U-Boot prompt:
+
+.. code-block:: sh
+
+    setenv bootargs 'debug console=tty1 root=/dev/mmcblk0p7 rootwait rw'
+    setenv bootcmd 'mmc dev 0; ext2load mmc 0:9 ${loadaddr} /vmlinux.uimg; bootm ${loadaddr}'
+    saveenv
+    boot
+
 Step 5: Chromebook specific configuration
 =========================================
 
