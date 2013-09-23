@@ -1,0 +1,11 @@
+Section "Device"
+	Identifier "Mali FBDEV"
+	Driver "fbdev"
+EndSection
+
+Section "Screen"
+	Identifier      "DefaultScreen"
+	Device          "Mali FBDEV"
+	DefaultDepth    24
+EndSection
+

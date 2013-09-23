@@ -18,7 +18,3 @@ Section "Screen"
 	DefaultDepth    24
 EndSection
 
-Section "InputClass"
-	Identifier "touchpad"
-	MatchIsTouchpad "on"
-EndSection
